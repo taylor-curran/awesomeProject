@@ -1,21 +1,57 @@
 package main
 
 import (
-  "fmt"
+	"context"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
 )
 
-//TIP <p>To run your code, right-click the code and select <b>Run</b>.</p> <p>Alternatively, click
-// the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.</p>
-
 func main() {
-  //TIP <p>Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined text
-  // to see how GoLand suggests fixing the warning.</p><p>Alternatively, if available, click the lightbulb to view possible fixes.</p>
-  s := "gopher"
-  fmt.Printf("Hello and welcome, %s!\n", s)
+	// Get API key from environment
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		fmt.Println("Error: OPENAI_API_KEY environment variable not set")
+		os.Exit(1)
+	}
 
-  for i := 1; i <= 5; i++ {
-	//TIP <p>To start your debugging session, right-click your code in the editor and select the Debug option.</p> <p>We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-	// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.</p>
-	fmt.Println("i =", 100/i)
-  }
+	// Create a timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Initialize the OpenAI client
+	client := openai.NewClient(option.WithAPIKey(apiKey))
+
+	// Create prompt and request parameters
+	prompt := "Write a haiku about programming in Go:"
+	
+	// Send request to OpenAI
+	chatCompletion, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.UserMessage(prompt),
+		},
+		Model:       openai.ChatModelGPT3_5Turbo,
+		MaxTokens:   openai.Int(150),
+		Temperature: openai.Float(0.7),
+	})
+
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Display the response
+	fmt.Println("\nPrompt: " + prompt)
+	fmt.Println("\nResponse from OpenAI:")
+	
+	if len(chatCompletion.Choices) > 0 {
+		fmt.Println(chatCompletion.Choices[0].Message.Content)
+		fmt.Printf("\nModel: %s\n", chatCompletion.Model)
+		fmt.Printf("Tokens used: %d\n", chatCompletion.Usage.TotalTokens)
+	} else {
+		fmt.Println("No completion choices returned")
+	}
 }
